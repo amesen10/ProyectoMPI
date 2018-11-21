@@ -38,21 +38,6 @@ int main(int argc, char* argv[]) {
 	double infeccion, recuperacion, infectadas;
 	obt_args(argv, numeroPersonas, infeccion, recuperacion, duracion, infectadas, size);
 
-	//si el usuario pone 1 entonces la matriz es de 100, si es 2 entonces es de 500 si es 3 entonces es de 1000
-	if (size == 1) {
-		matrizSize = 100;
-
-	}
-	else if (size == 2) {
-		matrizSize = 500;
-	}
-	else if (size == 3) {
-		matrizSize = 1000;
-	}
-	else if (size == 4) {
-		matrizSize = 6;
-	}
-
 	cout << "su matriz es de tama;o " << matrizSize << " x " << matrizSize << endl << endl;
 
 	vector<vector<list<int>>>matriz;
@@ -63,13 +48,6 @@ int main(int argc, char* argv[]) {
 	{
 		it.resize(matrizSize);
 	}
-
-
-
-
-
-
-
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	cin.ignore();
@@ -94,7 +72,54 @@ void obt_args(char* argv[], int& numeroPersonas, double& infeccion, double& recu
 	size = strtol(argv[6], NULL, 10);
 
 	if (numeroPersonas < 0)
-		cout << "\t";
-
-
+	{
+		do{
+		cout << "\t Numero de personas invalido, digite otra cifra [0, 10.000.000]: ";
+		cin>>numeroPersonas;
+		while(numeroPersonas < 0);
+	}
+	if (infeccion < 0 || infeccion>1)
+	{
+		do{
+		cout << "\t Probabilidad infecciosa invalida, digite otra cifra [0, 1]: ";
+		cin>>infeccion;
+		while(infeccion < 0 || infeccion>1);
+	}
+	if (recuperacion < 0 || recuperacion>1)
+	{
+		do{
+		cout << "\t Probabilidad de recuperacion invalida, digite otra cifra [0, 1]: ";
+		cin>>recuperacion;
+		while(recuperacion < 0 || recuperacion>1);
+	}
+	if (duracion < 5 || duracion>50)
+	{
+		do{
+		cout << "\t Duracion infecciosa maxima invalida, digite otra cifra [0, 50]: ";
+		cin>>duracion;
+		while(duracion < 5 || duracion>50);
+	}
+	if (infectadas < 0 || infectadas>1)
+	{
+		do{
+		cout << "\t Porcentaje personas incialmente infectadas invalido, digite otra cifra [0, 10]: ";
+		cin>>infectadas;
+		while(infectadas < 0 || infectadas>1);
+	}
+	if (size < 1 || size>3)
+	{
+		do{
+			cout << "\t Tamano invalido, digite otra cifra: \n"
+			 << "\t    1) 100x100"	<<endl
+			 << "\t    2) 500x500"	<<endl
+			 << "\t    3) 1000x1000"<<endl;
+			cin>>size;
+		}while(size < 1 || size>3);
+	}
+	switch(size)
+	{
+		case 1: size=6/*100*/; break;
+		case 2: size=500; break;
+		case 3: size=1000; break;
+	}
 }
