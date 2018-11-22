@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <string>
 #include <list>
+#include <random>
 using namespace std;
 
 #define DEBUG
@@ -12,10 +13,7 @@ void uso(string nombre_prog);
 
 void obt_args(char* argv[], int& numeroPersonas, double& infeccion, double& recuperacion, int& duracion, double& infectadas, int& size);
 
-
-
 void simulacion() {}
-
 
 int main(int argc, char* argv[]) {
 	int mid;
@@ -32,25 +30,78 @@ int main(int argc, char* argv[]) {
 	MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-
 	//aqui va el codigo
-	int numeroPersonas, duracion, size, matrizSize;
+	int nPersonas, duracion, size, tics;
+	int tInfectadas, tSanas, tCuradas, tInmunes, tMuertas;	//t=total
 	double infeccion, recuperacion, infectadas;
-	obt_args(argv, numeroPersonas, infeccion, recuperacion, duracion, infectadas, size);
+	double tPared;	//t=tiempo
+	int veces;	//Será el numero de personas entre la cantidad de procesos
+	//int randomXY;
+	obt_args(argv, nPersonas, infeccion, recuperacion, duracion, infectadas, size);
 
-	cout << "su matriz es de tama;o " << matrizSize << " x " << matrizSize << endl << endl;
+	//cout << "su matriz es de tamano "<< size<<"x"<<size << endl << endl;
+	default_random_engine generator;
+	uniform_int_distribution <int> distributionXY(0, size-1);
+	uniform_int_distribution <int> distribution12(1, 2);
 
-	vector<vector<list<int>>>matriz;
+	int *matriz = (int*)calloc(nPersonas *4+1, sizeof(int));	//guardar -1 en el ultimo para saber que allí termina
+	
+	if(mid==0)
+		veces = nPersonas / cnt_proc;	//Se hace la division una sola vez par ahorrar por cuestiones de eficiencia en tiempo
+	MPI_Bcast(&veces, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	
+	int nInicialInfectados = nPersonas * infectadas;
+	//cout << "II: " << nInicialInfectados<<endl;
+	/*   Iniciar Infeccion   (Infectados iniciales)*/
+	for (int iter = 0; iter < nInicialInfectados*4; iter+=4)
+	{
+		*(matriz + iter) = 3;							//Estado 3 (Infectado)
+		*(matriz + iter + 1) = 0;						//Dias infectados
+		*(matriz + iter + 2) = distributionXY(generator);	//Posición en Eje-X
+		*(matriz + iter + 3) = distributionXY(generator);	//Posición en Eje-Y
+		cout<<*(matriz + iter)
+			<<" "<<*(matriz + iter + 1)
+			<<" X "<<*(matriz + iter + 2) 
+			<<" Y "<<*(matriz + iter + 3)			
+			<<"\t\t";
+	}
+	//cout << "II: " << nInicialInfectados << endl;
 
-	matriz.resize(matrizSize);
+	/*Paralelizar bien este FOR que le asigna a una persona un espacio*/
+
+	for (int iter = nInicialInfectados*4; iter < (nPersonas*4)/cnt_proc; ++iter)
+	{
+//#  ifdef DEBUG
+//		cout << "iter = " << iter << endl;
+//#  endif
+		*(matriz + iter) = distribution12(generator);		//Estado 1 (Inmune) o 2 (Sano)
+		*(matriz + iter + 1) = 0;							//Dias infectados
+		*(matriz + iter + 2) = distributionXY(generator);	//Posición en Eje-X
+		*(matriz + iter + 3) = distributionXY(generator);	//Posición en Eje-Y
+		cout << *(matriz + iter)
+			<< " " << *(matriz + iter + 1)
+			<< " X " << *(matriz + iter + 2)
+			<< " Y " << *(matriz + iter + 3)
+			<< "\t\t";
+	}
+
+	//poner iteradores X y Y para desplazarse por "matriz"
+
+	//vector<vector<list<int>>>matriz;
+
+	/*matriz.resize(matrizSize);
 
 	for (auto &it : matriz)
 	{
 		it.resize(matrizSize);
-	}
+	}*/
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	cin.ignore();
+	if (mid == 0)
+	{
+		//cout << endl << endl << "Time: " << elapsed << "s" << endl;
+		cin.ignore();
+	}
 	MPI_Finalize();
 
 	return 0;
@@ -73,38 +124,38 @@ void obt_args(char* argv[], int& numeroPersonas, double& infeccion, double& recu
 
 	if (numeroPersonas < 0)
 	{
-		do{
-		cout << "\t Numero de personas invalido, digite otra cifra [0, 10.000.000]: ";
-		cin>>numeroPersonas;
-		while(numeroPersonas < 0);
+		do {
+			cout << "\t Numero de personas invalido, digite otra cifra [0, 10.000.000]: ";
+			cin >> numeroPersonas;
+		} while (numeroPersonas < 0);
 	}
 	if (infeccion < 0 || infeccion>1)
 	{
-		do{
-		cout << "\t Probabilidad infecciosa invalida, digite otra cifra [0, 1]: ";
-		cin>>infeccion;
-		while(infeccion < 0 || infeccion>1);
+		do {
+			cout << "\t Probabilidad infecciosa invalida, digite otra cifra [0, 1]: ";
+			cin >> infeccion;
+		} while (infeccion < 0 || infeccion>1);
 	}
 	if (recuperacion < 0 || recuperacion>1)
 	{
-		do{
-		cout << "\t Probabilidad de recuperacion invalida, digite otra cifra [0, 1]: ";
-		cin>>recuperacion;
-		while(recuperacion < 0 || recuperacion>1);
+		do {
+			cout << "\t Probabilidad de recuperacion invalida, digite otra cifra [0, 1]: ";
+			cin >> recuperacion;
+		} while (recuperacion < 0 || recuperacion>1);
 	}
 	if (duracion < 5 || duracion>50)
 	{
-		do{
-		cout << "\t Duracion infecciosa maxima invalida, digite otra cifra [0, 50]: ";
-		cin>>duracion;
-		while(duracion < 5 || duracion>50);
+		do {
+			cout << "\t Duracion infecciosa maxima invalida, digite otra cifra [0, 50]: ";
+			cin >> duracion;
+		} while (duracion < 5 || duracion>50);
 	}
 	if (infectadas < 0 || infectadas>1)
 	{
-		do{
-		cout << "\t Porcentaje personas incialmente infectadas invalido, digite otra cifra [0, 10]: ";
-		cin>>infectadas;
-		while(infectadas < 0 || infectadas>1);
+		do {
+			cout << "\t Porcentaje personas incialmente infectadas invalido, digite otra cifra [0, 10]: ";
+			cin >> infectadas;
+		} while (infectadas < 0 || infectadas>1);
 	}
 	if (size < 1 || size>3)
 	{
