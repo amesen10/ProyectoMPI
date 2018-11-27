@@ -46,15 +46,18 @@ void imprimir(int const *matriz, int& nPersonas)
 	}
 }
 
-void validar(int *matriz, int& nPersonas, int& cnt_proc, int& iter,int& duracion, recuperacion, int& nInfectados)
+void validar(int *matriz, int& nPersonas, int& cnt_proc, int& iter, int& duracion, double& recuperacion, double& infeccion, int& nInfectados, int& enfermosRestantes)
 {
-	int enfermosRestantes=0;
-	validar(matriz, nPersonas, tInfectadas, tSanas, tCuradas, tInmunes, tMuertas);
-
+	default_random_engine generator;
+	uniform_real_distribution <double> proba(0, 1);
+	//int enfermosRestantes=0;
+	//validar(matriz, nPersonas, tInfectadas, tSanas, tCuradas, tInmunes, tMuertas);
+	enfermosRestantes=0;
 	for (iter; iter < (nPersonas / cnt_proc)*T; iter+=T)
 	{
 		if (*(matriz + iter) == 3)	//Si está infectado:
 		{	//	1-Busca infectar a los que pueda
+			++enfermosRestantes;
 			for (int i = 0; i < nPersonas*T; i += T)
 			{
 				
@@ -63,7 +66,13 @@ void validar(int *matriz, int& nPersonas, int& cnt_proc, int& iter,int& duracion
 					*(matriz + i) == 2	)
 				{
 					//Hacer el calculo de la probabilidad y asignar el nuevo estado en caso de darse el contagio
-					*(matriz + iter + 1) = 3;
+					if (proba(generator) < infeccion)
+					{
+						*(matriz + iter + 1) = 3;
+						++enfermosRestantes;
+						cout << "\t INFECTA" << endl;
+					}
+						
 				}
 				//NOTA: Falta el incremento de probabilidad por haber varios enfermos en una misma celda >:)
 
@@ -71,13 +80,17 @@ void validar(int *matriz, int& nPersonas, int& cnt_proc, int& iter,int& duracion
 			//	2-Verifica si ya es tiempo de morir o de recuperarse
 			if (*(matriz + iter + 1) == duracion)
 			{
-				if()//Calcular probabilidad de recuperacion o de muerte de acuerdo a  @recuperacion
-				*(matriz + iter + 1) = 0;		//Se actualiza el estado a Muerto=0
-												//Incrementar muertos totales (tMuertas)
+				if (proba(generator) < recuperacion)//Calcular probabilidad de recuperacion o de muerte de acuerdo a  @recuperacion
+				{
+					*(matriz + iter + 1) = 0;		//Se actualiza el estado a Muerto=0
+					cout << "\t MUERE" << endl;	//Incrementar muertos totales (tMuertas)
+				}
 				else
-					*(matriz + iter + 1) = 1;	//Se convierte a Inmune
-												//Actualizar el contador de Curadas
-				
+				{
+					*(matriz + iter + 1) = 1;	//Se convierte a Inmune i.e. se sana
+					cout << "\t CURA" << endl;	//Actualizar el contador de Curadas
+				}
+				--enfermosRestantes;
 			}	
 		}
 		
@@ -127,7 +140,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	//aqui va el codigo
-	int nPersonas, duracion, size, tics;
+	int nPersonas, duracion, size, tics=0;
 	int tInfectadas, tSanas, tCuradas, tInmunes, tMuertas;	//t=total
 	double infeccion, recuperacion, infectadas;
 	double tPared;	//t=tiempo
@@ -145,19 +158,22 @@ int main(int argc, char* argv[]) {
 	int nInicialInfectados = nPersonas * infectadas;
 	//int tamanio = (nPersonas - nInicialInfectados) / (cnt_proc - 1) * 5;
 	//int *matrizTemporal = (int*)calloc(tamanio, sizeof(int));
-	int enfermosRestantes = nInicialInfectados;
+	int enfermosRestantes = 0, enfermosTic=0;
 	if (mid == 0)
 	{
 		iniciar(matriz, nPersonas, nInicialInfectados, size);	//Comienza la simulación
 		imprimir(matriz, nPersonas);
 	}
 
-	while (enfermosRestantes != 0)
+	do
 	{
+		cout << "Enfermos Tic: " << enfermosTic <<" @ "<<mid<<endl<<endl;
 		MPI_Bcast(matriz, nPersonas - 1, MPI_INT, 0, MPI_COMM_WORLD);	//Comparte la matriz con todos los procesos
 		//VALIDAR
 		//Cada proceso debe ejecutar una parte nPersonas/#procesos y recorrer todo el vector para contagiar o morir
-		validar(matriz, nPersonas, cnt_proc, nPersonas/cnt_proc*mid/*INICIO*/, duracion, recuperacion, tInfectadas, tSanas, tCuradas, tInmunes, tMuertas);
+		//		(int *matriz, int& nPersonas, int& cnt_proc, int& iter, int& duracion, double& recuperacion, int& nInfectados)
+		int inicio = (int)(nPersonas / cnt_proc * mid*T);
+		validar(matriz, nPersonas, cnt_proc, inicio, duracion, recuperacion, infeccion, tInfectadas, enfermosTic/*, tSanas, tCuradas, tInmunes, tMuertas*/);
 		//SIMULAR
 		if (mid == 0)
 			simulacion(matriz, nPersonas, cnt_proc, nInicialInfectados, size);
@@ -166,15 +182,24 @@ int main(int argc, char* argv[]) {
 		{
 			imprimir(matriz, nPersonas);
 		}
-		--enfermosRestantes;
-		
+		MPI_Allreduce(&enfermosTic, &enfermosRestantes, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);	/*Provoca que se encicle, ver nota al final*/
+		//--enfermosRestantes;
+		cout << "Enfermos restantes: " << enfermosRestantes << " @ " << mid << endl;
 		++tics;
-	}
+		//poner una instruccion que todos los procesos compartan lo que modificaron
+		/* NOTA (POSIBLE SOLUCION):
+				Crear un arreglo temporal que guarde el rango de la matriz que usa cada proceso, 
+				para luego con un AllGather juntarlos todos y guardarlo en la, o en otra matriz, 
+				final hacer un Bcast para luego hacer otra tic
+		*/
+	} while (enfermosRestantes != 0);
 	//hacer un reduce a tics
 
-	
+	MPI_Barrier(MPI_COMM_WORLD);
 #ifdef DEBUG	//Impresion en otro proceso par acomprobar el Bcast	
 	if (mid == 1)
+	{
+		cout << "MMATRIZ DESDE PROCESO 1" << endl;
 		for (int iter = 0; iter < nPersonas * T; iter += T)
 		{
 			cout << *(matriz + iter)
@@ -183,11 +208,8 @@ int main(int argc, char* argv[]) {
 				<< " Y " << *(matriz + iter + 3)
 				<< "\t\t";
 		}
+	}
 #endif
-
-
-
-	MPI_Barrier(MPI_COMM_WORLD);
 	free(matriz);		//Liberación de la memoria ocupada
 	if (mid == 0)
 	{
