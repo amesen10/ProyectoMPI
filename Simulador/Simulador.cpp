@@ -8,12 +8,108 @@
 using namespace std;
 
 #define DEBUG
-
+# define T 4 
 void uso(string nombre_prog);
 
 void obt_args(char* argv[], int& numeroPersonas, double& infeccion, double& recuperacion, int& duracion, double& infectadas, int& size);
 
-void simulacion() {}
+void iniciar(int *matriz, int& nPersonas, int& nInicialInfectados, int &size)
+{
+	default_random_engine generator;
+	uniform_int_distribution <int> distributionXY(0, size - 1);
+	uniform_int_distribution <int> distribution12(1, 2);
+	for (int iter = 0; iter < nInicialInfectados * T; iter += T)
+	{
+		*(matriz + iter) = 3;							//Estado 3 (Infectado)
+		*(matriz + iter + 1) = 0;						//Dias infectados
+		*(matriz + iter + 2) = distributionXY(generator);	//Posición en Eje-X
+		*(matriz + iter + 3) = distributionXY(generator);	//Posición en Eje-Y
+	}
+	for (int iter = nInicialInfectados * 4; iter<nPersonas * T; iter += T)
+	{
+		*(matriz + iter) = distribution12(generator);		//Estado 1 (Inmune) o 2 (Sano)
+		*(matriz + iter + 1) = 0;							//Dias infectados
+		*(matriz + iter + 2) = distributionXY(generator);	//Posición en Eje-X
+		*(matriz + iter + 3) = distributionXY(generator);	//Posición en Eje-Y
+	}
+}
+
+void imprimir(int const *matriz, int& nPersonas)
+{
+	for (int iter = 0; iter < nPersonas * T; iter += T)
+	{
+		cout << *(matriz + iter)
+			<< " " << *(matriz + iter + 1)
+			<< " X " << *(matriz + iter + 2)
+			<< " Y " << *(matriz + iter + 3)
+			<< "\t\t";
+	}
+}
+
+void validar(int *matriz, int& nPersonas, int& cnt_proc, int& iter,int& duracion, recuperacion, int& nInfectados)
+{
+	int enfermosRestantes=0;
+	validar(matriz, nPersonas, tInfectadas, tSanas, tCuradas, tInmunes, tMuertas);
+
+	for (iter; iter < (nPersonas / cnt_proc)*T; iter+=T)
+	{
+		if (*(matriz + iter) == 3)	//Si está infectado:
+		{	//	1-Busca infectar a los que pueda
+			for (int i = 0; i < nPersonas*T; i += T)
+			{
+				
+				if (*(matriz + iter + 2) == *(matriz + i + 2) &&	//Si el enfermo está en la misma celda que el enfermo y además está sano
+					*(matriz + iter + 3) == *(matriz + i + 3) &&
+					*(matriz + i) == 2	)
+				{
+					//Hacer el calculo de la probabilidad y asignar el nuevo estado en caso de darse el contagio
+					*(matriz + iter + 1) = 3;
+				}
+				//NOTA: Falta el incremento de probabilidad por haber varios enfermos en una misma celda >:)
+
+			}
+			//	2-Verifica si ya es tiempo de morir o de recuperarse
+			if (*(matriz + iter + 1) == duracion)
+			{
+				if()//Calcular probabilidad de recuperacion o de muerte de acuerdo a  @recuperacion
+				*(matriz + iter + 1) = 0;		//Se actualiza el estado a Muerto=0
+												//Incrementar muertos totales (tMuertas)
+				else
+					*(matriz + iter + 1) = 1;	//Se convierte a Inmune
+												//Actualizar el contador de Curadas
+				
+			}	
+		}
+		
+	}
+
+	//return enfermosRestantes;
+}
+
+void simulacion(int *matriz, int& nPersonas, int& cnt_proc, int& nInfectados, int& size) 
+{
+	default_random_engine generator;
+	uniform_int_distribution <int> distributionXY(-1, 1);
+	for (int iter = 0; iter < nPersonas*T; iter += T)
+	{
+		*(matriz + iter) = *(matriz + iter);
+		if (*(matriz + iter) == 3)							//Estado 3 (Infectado)
+			matriz[iter + 1] = matriz[iter + 1] + 1;	//Dias infectados
+		else
+			matriz[iter + 1] = matriz[iter + 1];
+		*(matriz + iter + 2) = (*(matriz + iter + 2) + distributionXY(generator)) % size; //Movimiento en Eje-X
+		*(matriz + iter + 3) = (*(matriz + iter + 3) + distributionXY(generator)) % size; //Movimiento en Eje-Y
+	}
+	cout << "\n\n MOVIMIENTO\n\n";
+	for (int iter = 0; iter < nPersonas * T; iter += T)
+	{
+		cout << *(matriz + iter)
+			<< " " << *(matriz + iter + 1)
+			<< " X " << *(matriz + iter + 2)
+			<< " Y " << *(matriz + iter + 3)
+			<< "\t\t";
+	}
+}
 
 int main(int argc, char* argv[]) {
 	int mid;
@@ -36,73 +132,70 @@ int main(int argc, char* argv[]) {
 	double infeccion, recuperacion, infectadas;
 	double tPared;	//t=tiempo
 	int veces;	//Será el numero de personas entre la cantidad de procesos
-	//int randomXY;
+
 	obt_args(argv, nPersonas, infeccion, recuperacion, duracion, infectadas, size);
-
-	//cout << "su matriz es de tamano "<< size<<"x"<<size << endl << endl;
-	default_random_engine generator;
-	uniform_int_distribution <int> distributionXY(0, size-1);
-	uniform_int_distribution <int> distribution12(1, 2);
-
-	int *matriz = (int*)calloc(nPersonas *4+1, sizeof(int));	//guardar -1 en el ultimo para saber que allí termina
 	
-	if(mid==0)
-		veces = nPersonas / cnt_proc;	//Se hace la division una sola vez par ahorrar por cuestiones de eficiencia en tiempo
+
+	int *matriz = new int[nPersonas*4];	//guardar -1 en el ultimo para saber que allí termina
+
 	MPI_Bcast(&veces, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	
+	//#ifdef DEBUG
+	//		cout << "Veces = " << veces << endl;
+	//	#  endif
 	int nInicialInfectados = nPersonas * infectadas;
-	//cout << "II: " << nInicialInfectados<<endl;
-	/*   Iniciar Infeccion   (Infectados iniciales)*/
-	for (int iter = 0; iter < nInicialInfectados*4; iter+=4)
+	//int tamanio = (nPersonas - nInicialInfectados) / (cnt_proc - 1) * 5;
+	//int *matrizTemporal = (int*)calloc(tamanio, sizeof(int));
+	int enfermosRestantes = nInicialInfectados;
+	if (mid == 0)
 	{
-		*(matriz + iter) = 3;							//Estado 3 (Infectado)
-		*(matriz + iter + 1) = 0;						//Dias infectados
-		*(matriz + iter + 2) = distributionXY(generator);	//Posición en Eje-X
-		*(matriz + iter + 3) = distributionXY(generator);	//Posición en Eje-Y
-		cout<<*(matriz + iter)
-			<<" "<<*(matriz + iter + 1)
-			<<" X "<<*(matriz + iter + 2) 
-			<<" Y "<<*(matriz + iter + 3)			
-			<<"\t\t";
-	}
-	//cout << "II: " << nInicialInfectados << endl;
-
-	/*Paralelizar bien este FOR que le asigna a una persona un espacio*/
-
-	for (int iter = nInicialInfectados*4; iter < (nPersonas*4)/cnt_proc; ++iter)
-	{
-//#  ifdef DEBUG
-//		cout << "iter = " << iter << endl;
-//#  endif
-		*(matriz + iter) = distribution12(generator);		//Estado 1 (Inmune) o 2 (Sano)
-		*(matriz + iter + 1) = 0;							//Dias infectados
-		*(matriz + iter + 2) = distributionXY(generator);	//Posición en Eje-X
-		*(matriz + iter + 3) = distributionXY(generator);	//Posición en Eje-Y
-		cout << *(matriz + iter)
-			<< " " << *(matriz + iter + 1)
-			<< " X " << *(matriz + iter + 2)
-			<< " Y " << *(matriz + iter + 3)
-			<< "\t\t";
+		iniciar(matriz, nPersonas, nInicialInfectados, size);	//Comienza la simulación
+		imprimir(matriz, nPersonas);
 	}
 
-	//poner iteradores X y Y para desplazarse por "matriz"
-
-	//vector<vector<list<int>>>matriz;
-
-	/*matriz.resize(matrizSize);
-
-	for (auto &it : matriz)
+	while (enfermosRestantes != 0)
 	{
-		it.resize(matrizSize);
-	}*/
+		MPI_Bcast(matriz, nPersonas - 1, MPI_INT, 0, MPI_COMM_WORLD);	//Comparte la matriz con todos los procesos
+		//VALIDAR
+		//Cada proceso debe ejecutar una parte nPersonas/#procesos y recorrer todo el vector para contagiar o morir
+		validar(matriz, nPersonas, cnt_proc, nPersonas/cnt_proc*mid/*INICIO*/, duracion, recuperacion, tInfectadas, tSanas, tCuradas, tInmunes, tMuertas);
+		//SIMULAR
+		if (mid == 0)
+			simulacion(matriz, nPersonas, cnt_proc, nInicialInfectados, size);
+
+		if (mid == 0)
+		{
+			imprimir(matriz, nPersonas);
+		}
+		--enfermosRestantes;
+		
+		++tics;
+	}
+	//hacer un reduce a tics
+
+	
+#ifdef DEBUG	//Impresion en otro proceso par acomprobar el Bcast	
+	if (mid == 1)
+		for (int iter = 0; iter < nPersonas * T; iter += T)
+		{
+			cout << *(matriz + iter)
+				<< " " << *(matriz + iter + 1)
+				<< " X " << *(matriz + iter + 2)
+				<< " Y " << *(matriz + iter + 3)
+				<< "\t\t";
+		}
+#endif
+
+
 
 	MPI_Barrier(MPI_COMM_WORLD);
+	free(matriz);		//Liberación de la memoria ocupada
 	if (mid == 0)
 	{
 		//cout << endl << endl << "Time: " << elapsed << "s" << endl;
 		cin.ignore();
 	}
 	MPI_Finalize();
+	
 
 	return 0;
 }
@@ -159,18 +252,18 @@ void obt_args(char* argv[], int& numeroPersonas, double& infeccion, double& recu
 	}
 	if (size < 1 || size>3)
 	{
-		do{
+		do {
 			cout << "\t Tamano invalido, digite otra cifra: \n"
-			 << "\t    1) 100x100"	<<endl
-			 << "\t    2) 500x500"	<<endl
-			 << "\t    3) 1000x1000"<<endl;
-			cin>>size;
-		}while(size < 1 || size>3);
+				<< "\t    1) 100x100" << endl
+				<< "\t    2) 500x500" << endl
+				<< "\t    3) 1000x1000" << endl;
+			cin >> size;
+		} while (size < 1 || size>3);
 	}
-	switch(size)
+	switch (size)
 	{
-		case 1: size=6/*100*/; break;
-		case 2: size=500; break;
-		case 3: size=1000; break;
+	case 1: size = 6/*100*/; break;
+	case 2: size = 500; break;
+	case 3: size = 1000; break;
 	}
 }
