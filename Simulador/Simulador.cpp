@@ -52,35 +52,41 @@ void imprimir(int const *matriz, int& nPersonas)
 }
 
 //Método que verifica si una persona se puede contagiar y dependiendo de cuantos enfermos esten en esa posicion aumenta la posibilidad de enfermarse de los sanos
-void validar(int *arreglito, int *matriz, int& nPersonas, int& cnt_proc, int& iter, int& duracion, double& recuperacion, double& infeccion, int& nInfectados, int& tCuradas, int& tMuertas, int& tSanas)
+//void validar(int *arreglito, int *matriz, int& nPersonas, int& cnt_proc, int& iter, int& duracion, double& recuperacion, double& infeccion, int& nInfectados, int& tCuradas, int& tMuertas, int& tSanas)
+void validar(int *matriz, int& nPersonas, int& cnt_proc, int& mid, int& iter, int& duracion, double& recuperacion, double& infeccion, int& nInfectados, int& tCuradas, int& tMuertas, int& tSanas)
 {
 	/*NOTA: los enfermosRestantes se pueden estar contando doble, mejor hacer un solo ciclo que busque cuántos enfermos hay, incluso se pdoria hacer en otro método*/
 	default_random_engine generator;
 	uniform_real_distribution <double> proba(0, 1);
 	//int enfermosRestantes=0;
 	//enfermosRestantes=0;
-	int  posicionEnfermos=1, contador=0;
-	for (contador; contador < (nPersonas / cnt_proc)*T; contador += T)
+	int  posicionEnfermos=1, contador=mid*(nPersonas / cnt_proc)*T;
+	for (contador; contador < (mid*(nPersonas / cnt_proc)*T+ (nPersonas / cnt_proc)*T); contador += T)
 	{	
 		/*cout<<"ARREGLITO\n" << *(arreglito + iter)
 			<< " " << *(arreglito + iter + 1)
 			<< " X " << *(arreglito + iter + 2)
 			<< " Y " << *(arreglito + iter + 3)
 			<< "\t\t";*/		
-		if (*(arreglito + contador) == 2)	//Persona sana
+		//if (*(arreglito + contador) == 2)	//Persona sana
+		if(*(matriz+contador)==2)
 			++tSanas;
 		else
 		{
 			posicionEnfermos = 1;
-			if (*(arreglito + contador) == 3)	//Si está infectado:
+			//if (*(arreglito + contador) == 3)	//Si está infectado:
+			if(*(matriz + contador) == 3)
 			{	//	1-Busca infectar a los que pueda
 				//++enfermosRestantes;
 				//cout << "Infectado\n";
 				for (int i = 0; i < nPersonas*T; i += T)		//Busca los enfermos en la misma posición que el enfermo actual
 				{
 
-					if (*(arreglito + contador + 2) == *(matriz + i + 2) &&
+					/*if (*(arreglito + contador + 2) == *(matriz + i + 2) &&
 						*(arreglito + contador + 3) == *(matriz + i + 3) &&
+						*(matriz + i) == 3)*/
+					if (*(matriz + contador + 2) == *(matriz + i + 2) &&
+						*(matriz + contador + 3) == *(matriz + i + 3) &&
 						*(matriz + i) == 3)
 					{
 						++posicionEnfermos;
@@ -91,34 +97,47 @@ void validar(int *arreglito, int *matriz, int& nPersonas, int& cnt_proc, int& it
 				for (int i = 0; i < nPersonas*T; i += T)
 				{
 
-					if (*(arreglito + contador + 2) == *(matriz + i + 2) &&	//Si el enfermo está en la misma celda que el enfermo y además está sano
-						*(arreglito + contador + 3) == *(matriz + i + 3) &&
+					//if (*(arreglito + contador + 2) == *(matriz + i + 2) &&	//Si el enfermo está en la misma celda que el enfermo y además está sano
+					//	*(arreglito + contador + 3) == *(matriz + i + 3) &&
+					//	*(matriz + i) == 2)
+					if (*(matriz + contador + 2) == *(matriz + i + 2) &&	//Si el enfermo está en la misma celda que el enfermo y además está sano
+						*(matriz + contador + 3) == *(matriz + i + 3) &&
 						*(matriz + i) == 2)
 					{
 						//Hacer el calculo de la probabilidad y asignar el nuevo estado en caso de darse el contagio
 						if (proba(generator)*posicionEnfermos < infeccion)
 						{
-							*(arreglito + contador + 1) = 3;
+							cout << "\t INFECTA" << endl;
+							//cout << *(arreglito + contador)<<" ";
+							*(matriz + i) = 3;
 							//++enfermosRestantes;
 							++nInfectados;
 							--tSanas;
-							cout << "\t INFECTA" << endl;
+							
+							/*cout << *(arreglito + contador)
+								<< " " << *(arreglito + contador + 1)
+								<< " X " << *(arreglito + contador + 2)
+								<< " Y " << *(arreglito + contador +3)
+								<< "\t\t";*/
 						}
 
 					}
 				}
 				//	2-Verifica si ya es tiempo de morir o de recuperarse
-				if (*(arreglito + contador + 1) == duracion)
+				//if (*(arreglito + contador + 1) == duracion)
+				if (*(matriz + contador + 1) == duracion)
 				{
 					if (proba(generator) < recuperacion)//Calcular probabilidad de recuperacion o de muerte de acuerdo a  @recuperacion
 					{
-						*(arreglito + contador + 1) = 0;		//Se actualiza el estado a Muerto=0
+						//*(arreglito + contador + 1) = 0;		//Se actualiza el estado a Muerto=0
+						*(matriz + contador) = 0;		//Se actualiza el estado a Muerto=0
 						cout << "\t MUERE" << endl;	//Incrementar muertos totales (tMuertas)
 						++tMuertas;
 					}
 					else
 					{
-						*(arreglito + contador + 1) = 1;	//Se convierte a Inmune i.e. se sana
+						//*(arreglito + contador + 1) = 1;	//Se convierte a Inmune i.e. se sana
+						*(matriz + contador) = 1;	//Se convierte a Inmune i.e. se sana
 						cout << "\t CURA" << endl;	//Actualizar el contador de Curadas
 						++tCuradas;
 					}
@@ -132,34 +151,46 @@ void validar(int *arreglito, int *matriz, int& nPersonas, int& cnt_proc, int& it
 }
 
 //Mueve a la persona si no está muerta; en caso de estar infectada, aumenta el tiempo que ha estado infectado
-void simulacion(int *arreglito, int *matriz, int& nPersonas, int& cnt_proc, int& nInfectados, int& size, int inicio)
+//void simulacion(int *arreglito, int *matriz, int& nPersonas, int& cnt_proc, int& nInfectados, int& size, int inicio)
+void simulacion(int *matriz, int& nPersonas, int& cnt_proc, int& mid, int& nInfectados, int& size, int inicio)
 {
 	default_random_engine generator;
 	uniform_int_distribution <int> distributionXY(0, 1);
-	for (int iter = 0; iter < nPersonas/cnt_proc*T; iter += T)
+	//for (int iter = 0; iter < nPersonas/cnt_proc*T; iter += T)
+	for (int iter = mid * (nPersonas / cnt_proc)*T; iter < mid*(nPersonas / cnt_proc)*T+ (nPersonas / cnt_proc)*T; iter += T)
 	{
-		if (*(arreglito + iter) == 3)							//Estado 3 (Infectado)
-			arreglito[iter + 1] = arreglito[iter + 1] + 1;	//Dias infectados
+		//if (*(arreglito + iter) == 3)							//Estado 3 (Infectado)
+		if (*(matriz + iter) == 3)
+			matriz[iter + 1] = matriz[iter + 1] + 1;	//Dias infectados
 		
-		if (*(arreglito + iter) != 0)	//Si la persona no está muerta (Estado 0) se desplaza por el espacio 
+		//if (*(arreglito + iter) != 0)	//Si la persona no está muerta (Estado 0) se desplaza por el espacio 
+		if (*(matriz + iter) != 0)
 		{
 			if (!distributionXY(generator))	//se moverá un espacio a la derecha
 			{
-				*(arreglito + iter + 2) = (*(arreglito + iter + 2) -1); //Movimiento en Eje-X
-				if (*(arreglito + iter + 2) < 0)
-					*(arreglito + iter + 2) = size - 1;
+				//*(arreglito + iter + 2) = (*(arreglito + iter + 2) -1); //Movimiento en Eje-X
+				*(matriz + iter + 2) = (*(matriz + iter + 2) - 1); //Movimiento en Eje-X
+				/*if (*(arreglito + iter + 2) < 0)
+					*(arreglito + iter + 2) = size - 1;*/
+				if (*(matriz + iter + 2) < 0)
+					*(matriz + iter + 2) = size - 1;
 			}
 			else   //Movimiento hacia la izquierda
-				*(arreglito + iter + 2) = (*(arreglito + iter + 2) + 1) % size;
+				//*(arreglito + iter + 2) = (*(arreglito + iter + 2) + 1) % size;
+				*(matriz + iter + 2) = (*(matriz + iter + 2) + 1) % size;
 			
 			if (!distributionXY(generator))	//se moverá un espacio hacia abajo
 			{
-				*(arreglito + iter + 3) = (*(arreglito + iter + 3) -1); //Movimiento en Eje-Y
-				if (*(arreglito + iter + 3) < 0)
-					*(arreglito + iter + 3) = size - 1;
+				//*(arreglito + iter + 3) = (*(arreglito + iter + 3) -1); //Movimiento en Eje-Y
+				*(matriz + iter + 3) = (*(matriz + iter + 3) - 1); //Movimiento en Eje-Y
+				/*if (*(arreglito + iter + 3) < 0)
+					*(arreglito + iter + 3) = size - 1;*/
+				if (*(matriz + iter + 3) < 0)
+					*(matriz + iter + 3) = size - 1;
 			}
 			else	//se moverá un espacio hacia arriba
-				*(arreglito + iter + 3) = (*(arreglito + iter + 3) +1) % size;
+				//*(arreglito + iter + 3) = (*(arreglito + iter + 3) +1) % size;
+				*(matriz + iter + 3) = (*(matriz + iter + 3) + 1) % size;
 			
 		}
 	}
@@ -174,12 +205,15 @@ void simulacion(int *arreglito, int *matriz, int& nPersonas, int& cnt_proc, int&
 	}*/
 }
 
-int cuentaInfectados(int *arreglito, int& nPersonas, int& cnt_proc)
+//int cuentaInfectados(int *arreglito, int& nPersonas, int& cnt_proc)
+int cuentaInfectados(int *matriz, int& nPersonas, int& cnt_proc, int& mid)
 {
 	int enfermosRestantes = 0;
-	for (int i=0; i < (nPersonas / cnt_proc)*T; i += T)
+	//for (int i=0; i < (nPersonas / cnt_proc) *T; i += T)
+	for (int i = mid * (nPersonas / cnt_proc)*T; i < mid * (nPersonas / cnt_proc)*T+(nPersonas / cnt_proc)*T; i += T)
 	{
-		if (*(arreglito + i) == 3)
+		//if (*(arreglito + i) == 3)
+		if (*(matriz + i) == 3)
 			++enfermosRestantes;
 	}
 	return enfermosRestantes;
@@ -229,14 +263,15 @@ int main(int argc, char* argv[]) {
 		cout << "Enfermos Tic: " << enfermosTic <<" @ "<<mid<<endl<<endl;
 		MPI_Bcast(matriz, nPersonas - 1, MPI_INT, 0, MPI_COMM_WORLD);	//Comparte el espacio (matriz) con todos los procesos
 
-		int *temp = new int[nPersonas*T];
-		int *arreglito = new int[(nPersonas / cnt_proc) *T];
+	//	int *temp = new int[nPersonas*T];
+		//int *arreglito = new int[(nPersonas / cnt_proc) *T];
 		//temp=matriz;
-		MPI_Scatter(matriz, nPersonas/cnt_proc*T, MPI_INT, arreglito, nPersonas / cnt_proc * T, MPI_INT, 0, MPI_COMM_WORLD);		//Se separa el espacio total entre los procesos para realizar las verificaciones correspondientes
-
+		//MPI_Scatter(matriz, nPersonas/cnt_proc*T, MPI_INT, arreglito, nPersonas / cnt_proc * T, MPI_INT, 0, MPI_COMM_WORLD);		//Se separa el espacio total entre los procesos para realizar las verificaciones correspondientes
+		//Se elimina el scatter porque en caso de dejarlo, se debe volver a compartir los datos, lo mejor es trabajar solo sobre matriz 
 		//VALIDAR: Realiza los contagios, sanaciones o muertes de cada persona
 		int inicio = (int)((nPersonas / cnt_proc) * mid*T);
-		validar(arreglito, matriz, nPersonas, cnt_proc, inicio, duracion, recuperacion, infeccion, tInfectadas, tCuradas, tMuertas, tSanas);
+		//validar(arreglito, matriz, nPersonas, cnt_proc, inicio, duracion, recuperacion, infeccion, tInfectadas, tCuradas, tMuertas, tSanas);
+		validar(matriz, nPersonas, cnt_proc, mid, inicio, duracion, recuperacion, infeccion, tInfectadas, tCuradas, tMuertas, tSanas);
 		
 		/*
 		
@@ -245,24 +280,32 @@ int main(int argc, char* argv[]) {
 		enfermosTic=cuentaInfectados(int *arreglito, int& nPersonas, int& cnt_proc);
 
 		*/
-
+		
 		//SIMULAR: realiza los movimientos
-		simulacion(arreglito,matriz, nPersonas, cnt_proc, nInicialInfectados, size, inicio);
+		//simulacion(arreglito,matriz, nPersonas, cnt_proc, nInicialInfectados, size, inicio);
+		simulacion(matriz, nPersonas, cnt_proc, mid, nInicialInfectados, size, inicio);
 
 		if (mid == 0)
 		{
-			cout << "\nIMPRESION MATRIZ" << endl;
+			cout << "\nIMPRESION MATRIZ @" <<tics<< endl;
 			imprimir(matriz, nPersonas);
 		}
+		//enfermosTic = cuentaInfectados(arreglito, nPersonas, cnt_proc);
+		enfermosTic = cuentaInfectados(matriz, nPersonas, cnt_proc, mid);
 
 		//Provoca que se encicle, ver nota al final (Ver. 4-12, no se encicla)
 		MPI_Allreduce(&enfermosTic, &enfermosRestantes, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);		//Reduce al contador de enfermos restantes por el espacio
 			//Se incrementa el acumulador total de personas infectadas
-		cout << "Enfermos restantes: " << enfermosRestantes << " @ " << mid << endl;
+		cout << "Enfermos restantes: " <<enfermosTic<<" / "<< enfermosRestantes << " @ " << mid << endl;
 
+		/* hacer un barrier; Acá sería crear una submatriz que copie un rango dado por el rango y la cantidad de personas, luego hacer un free
+		al puntero de matriz, para luego paro medio de un gather reunir en el proceso 0 todas las submatrices y compartirlas en el Bcast al inicio del ciclo */
 		
-		MPI_Allgather(arreglito, (nPersonas / cnt_proc) *T, MPI_INT, matriz, (nPersonas / cnt_proc) *T, MPI_INT, MPI_COMM_WORLD);
-
+		//MPI_Allgather(arreglito, (nPersonas / cnt_proc) *T, MPI_INT, matriz, (nPersonas / cnt_proc) *T, MPI_INT, MPI_COMM_WORLD);
+		/*if (mid == 0)
+		{
+			cout << "Enfermos restantes luego del Allgather: " << enfermosRestantes<<endl;
+		}*/
 		//Actualización de la cantidad de personas que se han infectado, curado o muerto y la cantidad de sanos que hay en el tic actual
 		infectadasT += tInfectadas;
 		curadasT += tCuradas;
@@ -288,8 +331,9 @@ int main(int argc, char* argv[]) {
 		}
 		MPI_Barrier(MPI_COMM_WORLD);*/
 			//matriz = temp;
-		free(temp);
-		free(arreglito);
+	//	free(temp);
+		//free(arreglito);
+
 		//enviar al archivo de salida y al buffer los resultados de la TIC actual
 	} while (enfermosRestantes !=0);
 	
